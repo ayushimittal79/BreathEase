@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreatheEase - About</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">🌸 BreatheEase</div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about" class="active">About</a></li>
+                <li><a href="/help">Help</a></li>
+                <li><a href="/mood-test" class="cta-btn">Mood Test</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- About Section -->
+    <section class="content-section">
+        <div class="content-container">
+            <h1>About BreatheEase</h1>
+            
+            <div class="about-content">
+                <div class="about-intro">
+                    <p class="lead-text">
+                        BreatheEase is your compassionate companion on the journey to better mental wellness. 
+                        We believe that everyone deserves accessible tools to manage stress, anxiety, and emotional challenges.
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h2>Our Mission</h2>
+                    <p>
+                        In today's fast-paced world, taking care of our mental health is more important than ever. 
+                        BreatheEase was created to provide immediate, personalized support when you need it most—whether 
+                        you're feeling overwhelmed, anxious, numb, or simply seeking a moment of peace.
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h2>How It Works</h2>
+                    <p>
+                        Using advanced sentiment analysis technology, BreatheEase understands the emotions expressed in 
+                        your words and provides tailored recommendations including:
+                    </p>
+                    <ul class="features-list">
+                        <li><strong>Calming Music:</strong> Carefully selected songs designed to support your emotional state</li>
+                        <li><strong>Mindful Activities:</strong> Practical exercises to help you reconnect and find balance</li>
+                        <li><strong>Inspirational Quotes:</strong> Words of wisdom to comfort and encourage you</li>
+                        <li><strong>Crisis Resources:</strong> Immediate support information when you need professional help</li>
+                    </ul>
+                </div>
+
+                <div class="about-section">
+                    <h2>Our Approach</h2>
+                    <p>
+                        BreatheEase combines evidence-based techniques from mindfulness, cognitive behavioral therapy, 
+                        and music therapy to create a holistic support system. We analyze your mood through natural 
+                        language processing and provide personalized recommendations based on your current emotional state.
+                    </p>
+                </div>
+
+                <div class="about-section">
+                    <h2>Important Note</h2>
+                    <div class="disclaimer-box">
+                        <p>
+                            <strong>BreatheEase is a supportive tool, not a substitute for professional mental health care.</strong> 
+                            If you're experiencing a mental health crisis or struggling with persistent mental health issues, 
+                            please reach out to a qualified mental health professional or crisis hotline. Your wellbeing matters, 
+                            and professional support can make all the difference.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="cta-box">
+                    <h3>Ready to Begin Your Wellness Journey?</h3>
+                    <a href="/mood-test" class="primary-button">Take the Mood Test</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 BreatheEase. Your mental wellness matters. 💙</p>
+        <p class="footer-note">Remember: This tool is for support, not a substitute for professional help.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

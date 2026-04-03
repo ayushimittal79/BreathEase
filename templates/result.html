@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreatheEase - Your Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">🌸 BreatheEase</div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/help">Help</a></li>
+                <li><a href="/mood-test" class="cta-btn">Mood Test</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Results Section -->
+    <section class="results-section">
+        <div class="results-container">
+            <!-- Mood Detection Display -->
+            <div class="mood-header">
+                <h1>Your Mood: <span class="mood-badge mood-{{ mood.lower() }}">{{ mood }}</span></h1>
+                <p class="mood-message">We've analyzed how you're feeling. Here are some personalized recommendations for you.</p>
+            </div>
+
+            <!-- User's Original Text -->
+            <div class="user-input-display">
+                <h3>What you shared:</h3>
+                <p class="user-text">"{{ user_text }}"</p>
+            </div>
+
+            <!-- Recommendations Grid -->
+            <div class="recommendations-grid">
+                <!-- Song Recommendation -->
+                <div class="recommendation-card">
+                    <div class="card-header">
+                        <span class="card-icon">🎵</span>
+                        <h2>Recommended Song</h2>
+                    </div>
+                    <div class="card-content">
+                        <p class="song-title">{{ song.title }}</p>
+                        
+                        <!-- Spotify Player -->
+                        <div class="spotify-player">
+                            <iframe 
+                                src="{{ song.spotify }}" 
+                                width="100%" 
+                                height="152" 
+                                frameborder="0" 
+                                allowtransparency="true" 
+                                allow="encrypted-media">
+                            </iframe>
+                            <p class="audio-note">🎧 Click play to listen on Spotify</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Recommendation -->
+                <div class="recommendation-card">
+                    <div class="card-header">
+                        <span class="card-icon">🧘</span>
+                        <h2>Suggested Activity</h2>
+                    </div>
+                    <div class="card-content">
+                        <p class="activity-text">{{ activity }}</p>
+                        <button class="secondary-button" onclick="markComplete()">I've Done This ✓</button>
+                        <p class="completion-message" id="completionMsg" style="display: none;">
+                            🌟 Great job! You're taking care of yourself.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inspirational Quote -->
+            <div class="quote-section">
+                <div class="quote-icon">💭</div>
+                <blockquote class="inspirational-quote">
+                    {{ quote }}
+                </blockquote>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="/mood-test" class="primary-button">Take Another Test</a>
+                <a href="/" class="secondary-button">Return Home</a>
+            </div>
+
+            <!-- Crisis Resources (shown for depression/anxiety moods) -->
+            {% if mood.lower() in ['depression', 'anxiety'] %}
+            <div class="crisis-box">
+                <h3>⚠️ Need Immediate Support?</h3>
+                <p>If you're in crisis or need to talk to someone right now:</p>
+                <ul>
+                    <li><strong>National Suicide Hotline:</strong> 1800-121-3667 (India)</li>
+                    <li><strong>Crisis Text Line:</strong> Text "HELLO" to 741741</li>
+                    <li><strong>International:</strong> Visit <a href="https://findahelpline.com" target="_blank">findahelpline.com</a></li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 BreatheEase. Your mental wellness matters. 💙</p>
+        <p class="footer-note">Remember: This tool is for support, not a substitute for professional help.</p>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // Function to mark activity as complete
+        function markComplete() {
+            document.getElementById('completionMsg').style.display = 'block';
+            event.target.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

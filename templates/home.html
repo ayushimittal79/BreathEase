@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreatheEase - Home</title>
+    <!-- Link to external CSS stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">🌸 BreatheEase</div>
+            <ul class="nav-links">
+                <li><a href="/" class="active">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/help">Help</a></li>
+                <li><a href="/mood-test" class="cta-btn">Mood Test</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Welcome to BreatheEase</h1>
+            <p class="subtitle">Your personal companion for managing anxiety and stress</p>
+            <p class="description">
+                Take a moment to breathe. Share how you're feeling, and let us guide you 
+                toward calm with personalized music, activities, and mindfulness tips.
+            </p>
+            <a href="/mood-test" class="primary-button">Start Your Mood Test</a>
+        </div>
+        
+        <!-- Decorative breathing animation -->
+        <div class="breathing-circle"></div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <h2>How BreatheEase Helps You</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🎵</div>
+                <h3>Calming Music</h3>
+                <p>Receive personalized song recommendations designed to soothe your current emotional state.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🧘</div>
+                <h3>Mindful Activities</h3>
+                <p>Get tailored exercises and activities to help you reconnect with yourself and find balance.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💭</div>
+                <h3>Emotion Analysis</h3>
+                <p>Our AI understands your feelings and provides compassionate, personalized support.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✨</div>
+                <h3>Inspiring Quotes</h3>
+                <p>Find comfort in wisdom and gentle reminders that you're not alone in your journey.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="cta-section">
+        <h2>Ready to Find Your Calm?</h2>
+        <p>Take the first step toward emotional wellness today.</p>
+        <a href="/mood-test" class="primary-button">Take the Mood Test</a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 BreatheEase. Your mental wellness matters. 💙</p>
+        <p class="footer-note">Remember: This tool is for support, not a substitute for professional help.</p>
+    </footer>
+
+    <!-- Optional: Link to JavaScript file -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

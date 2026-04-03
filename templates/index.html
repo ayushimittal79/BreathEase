@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BreatheEase - Mood Test</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">🌸 BreatheEase</div>
+            <ul class="nav-links">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/help">Help</a></li>
+                <li><a href="/mood-test" class="active cta-btn">Mood Test</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Mood Test Section -->
+    <section class="mood-test-section">
+        <div class="test-container">
+            <h1>How Are You Feeling Today?</h1>
+            <p class="test-subtitle">
+                Take a moment to express yourself. There's no right or wrong answer—just honesty.
+            </p>
+
+            <!-- Display error message if form submitted empty -->
+            {% if error %}
+            <div class="error-message">
+                <p>{{ error }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Mood Input Form -->
+            <form action="/analyze" method="POST" class="mood-form" id="moodForm">
+                <label for="mood_text">Share your thoughts and feelings:</label>
+                <textarea 
+                    name="mood_text" 
+                    id="mood_text" 
+                    rows="8" 
+                    placeholder="Type here... For example: 'I feel overwhelmed with work and can't seem to relax' or 'I'm having a great day and feeling grateful!'"
+                    required
+                ></textarea>
+                
+                <!-- Character counter -->
+                <div class="char-counter">
+                    <span id="charCount">0</span> characters
+                </div>
+
+                <!-- Submit button -->
+                <button type="submit" class="primary-button submit-btn">Analyze My Mood</button>
+            </form>
+
+            <!-- Helpful tips while user is on the page -->
+            <div class="tips-box">
+                <h3>💡 Tips for sharing:</h3>
+                <ul>
+                    <li>Be honest about what you're experiencing right now</li>
+                    <li>Describe your emotions in detail (sad, anxious, peaceful, etc.)</li>
+                    <li>Share what might be causing these feelings, if you know</li>
+                    <li>There's no judgment here—this is a safe space for you</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>&copy; 2025 BreatheEase. Your mental wellness matters. 💙</p>
+        <p class="footer-note">Remember: This tool is for support, not a substitute for professional help.</p>
+    </footer>
+
+    <!-- JavaScript for character counter and form validation -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
