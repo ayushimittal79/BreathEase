@@ -37,27 +37,29 @@
 
             <!-- Recommendations Grid -->
             <div class="recommendations-grid">
-                <!-- Song Recommendation -->
+                <!-- Song Recommendations -->
                 <div class="recommendation-card">
                     <div class="card-header">
                         <span class="card-icon">🎵</span>
-                        <h2>Recommended Song</h2>
+                        <h2>Recommended Songs</h2>
                     </div>
                     <div class="card-content">
-                        <p class="song-title">{{ song.title }}</p>
-                        
-                        <!-- Spotify Player -->
+                        {% for song in songs %}
+                        <p class="song-title">
+                            {{ song.title }}{% if song.artist %} — <em>{{ song.artist }}</em>{% endif %}
+                        </p>
                         <div class="spotify-player">
-                            <iframe 
-                                src="{{ song.spotify }}" 
-                                width="100%" 
-                                height="152" 
-                                frameborder="0" 
-                                allowtransparency="true" 
+                            <iframe
+                                src="https://open.spotify.com/embed/track/{{ song.spotify_id }}"
+                                width="100%"
+                                height="80"
+                                frameborder="0"
+                                allowtransparency="true"
                                 allow="encrypted-media">
                             </iframe>
-                            <p class="audio-note">🎧 Click play to listen on Spotify</p>
                         </div>
+                        {% endfor %}
+                        <p class="audio-note">🎧 Click play to listen on Spotify</p>
                     </div>
                 </div>
 

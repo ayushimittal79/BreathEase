@@ -1,9 +1,6 @@
-# BreatheEase - Python Dependencies
-# Install with: pip install -r requirements.txt
-
 Flask==3.0.0
 vaderSentiment==3.3.2
 Werkzeug==3.0.1
-
-# Optional: If you want to download TextBlob corpora
-# Run after installation: python -m textblob.download_corpora
+spotipy==2.23.0
+google-generativeai==0.7.2
+python-dotenv==1.0.0
