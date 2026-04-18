@@ -6,14 +6,19 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import google.generativeai as genai
 
-from dotenv import load_dotenv
-load_dotenv()
-
 # Initialize Flask application
 app = Flask(__name__)
 
 # Initialize VADER sentiment analyzer
 analyzer = SentimentIntensityAnalyzer()
+
+# ─────────────────────────────────────────────
+# API SETUP
+# Set these in your environment or a .env file:
+#   SPOTIFY_CLIENT_ID
+#   SPOTIFY_CLIENT_SECRET
+#   GEMINI_API_KEY
+# ─────────────────────────────────────────────
 
 # Spotify setup
 sp = None
@@ -356,3 +361,4 @@ if __name__ == '__main__':
     print("🤖 Gemini activities:", "✅ enabled" if gemini_model else "⚠️  disabled (check env vars)")
     print("✅ Server running at: http://127.0.0.1:5000")
     print("🛑 Press Ctrl+C to stop the server")
+    app.run(debug=False, host='0.0.0.0', port=5000)
