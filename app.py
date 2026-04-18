@@ -6,6 +6,9 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import google.generativeai as genai
 
+from dotenv import load_dotenv
+load_dotenv()
+
 # Initialize Flask application
 app = Flask(__name__)
 
