@@ -1,73 +1,94 @@
 from flask import Flask, render_template, request
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import random
-import os
+from transformers import pipeline
+from google import genai
+from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-import google.generativeai as genai
+import random
+import os
 
-# Initialize Flask application
+load_dotenv()
+
+# ─────────────────────────────────────────────
+# FLASK + VADER INIT
+# ─────────────────────────────────────────────
 app = Flask(__name__)
-
-# Initialize VADER sentiment analyzer
-analyzer = SentimentIntensityAnalyzer()
+vader_analyzer = SentimentIntensityAnalyzer()
 
 # ─────────────────────────────────────────────
-# API SETUP
-# Set these in your environment or a .env file:
-#   SPOTIFY_CLIENT_ID
-#   SPOTIFY_CLIENT_SECRET
-#   GEMINI_API_KEY
+# HUGGINGFACE EMOTION MODEL INIT
+# Model: j-hartmann/emotion-english-distilroberta-base
+# A transformer neural network fine-tuned on emotional text.
+# Outputs probabilities for 7 emotions: anger, disgust, fear,
+# joy, neutral, sadness, surprise.
+# Downloads ~300MB on first run, then cached locally.
 # ─────────────────────────────────────────────
+hf_classifier = None
+try:
+    hf_classifier = pipeline(
+        "text-classification",
+        model="j-hartmann/emotion-english-distilroberta-base",
+        top_k=None  # return all emotion scores, not just top 1
+    )
+    print("🤗 HuggingFace emotion model: ✅ loaded")
+except Exception as e:
+    print(f"⚠️  HuggingFace model failed to load: {e}. Will use VADER only.")
 
-# Spotify setup
+# ─────────────────────────────────────────────
+# SPOTIFY INIT
+# ─────────────────────────────────────────────
 sp = None
 try:
     sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-        client_id=os.environ.get("SPOTIFY_CLIENT_ID"),
-        client_secret=os.environ.get("SPOTIFY_CLIENT_SECRET")
+        client_id=os.environ.get("SPOTIPY_CLIENT_ID"),
+        client_secret=os.environ.get("SPOTIPY_CLIENT_SECRET")
     ))
+    print("🎵 Spotify: ✅ connected")
 except Exception as e:
     print(f"⚠️  Spotify init failed: {e}. Will use fallback songs.")
 
-# Gemini setup
+# ─────────────────────────────────────────────
+# GEMINI INIT
+# ─────────────────────────────────────────────
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 gemini_model = None
 try:
-    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-    gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+    gemini_model = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    print("🤖 Gemini: ✅ connected")
 except Exception as e:
     print(f"⚠️  Gemini init failed: {e}. Will use fallback activities.")
 
 
 # ─────────────────────────────────────────────
 # MOOD → SPOTIFY SEARCH QUERIES
-# These are tuned to return supportive, therapeutic music
+# Tuned to return emotionally supportive, therapeutic music
 # ─────────────────────────────────────────────
 MOOD_SPOTIFY_QUERIES = {
     'depression': [
-        'uplifting hopeful healing songs',
-        'you are not alone emotional support music',
-        'songs about getting through hard times',
+        'hopeful uplifting songs for sadness healing',
+        'gentle comforting music for when you feel empty',
+        'songs about finding light in dark times',
     ],
     'anxiety': [
-        'calm anxiety relief peaceful music',
-        'relaxing stress relief instrumental',
-        'soothing music for overthinking',
+        'calm instrumental music for anxiety relief',
+        'soft peaceful songs to slow racing thoughts',
+        'gentle acoustic music to reduce stress and worry',
     ],
     'numbness': [
-        'emotional reconnect feeling music',
-        'songs to feel something again',
-        'moving emotional music',
+        'emotional piano music to feel something again',
+        'moving orchestral songs that bring out deep feelings',
+        'deeply emotional music for dissociation and numbness',
     ],
     'calm': [
-        'peaceful ambient gentle calm music',
-        'cozy relaxing feel good songs',
-        'soft acoustic feel good music',
+        'soft cozy acoustic songs for peaceful evenings',
+        'gentle indie folk music for relaxing moments',
+        'warm ambient music for contentment and peace',
     ],
     'happy': [
-        'joyful upbeat happy songs',
-        'feel good energetic fun music',
-        'positive vibes happy playlist',
+        'upbeat joyful feel good indie pop',
+        'fun energetic songs for good mood dancing',
+        'happy positive vibes feel good playlist',
     ]
 }
 
@@ -103,7 +124,7 @@ FALLBACK_SONGS = {
 }
 
 # ─────────────────────────────────────────────
-# FALLBACK ACTIVITIES (used if Gemini is unavailable)
+# FALLBACK ACTIVITIES
 # ─────────────────────────────────────────────
 FALLBACK_ACTIVITIES = {
     'depression': [
@@ -142,33 +163,264 @@ MOOD_QUOTES = {
 }
 
 
+# ═════════════════════════════════════════════
+# ENSEMBLE MOOD DETECTION SYSTEM
+# Three models, each votes on the mood.
+# Final result = weighted majority vote.
+#
+# Weights (how much we trust each model):
+#   Gemini       → 0.5  (best contextual understanding)
+#   HuggingFace  → 0.3  (trained on real emotion data)
+#   VADER        → 0.2  (rule-based, fast, least nuanced)
+# ═════════════════════════════════════════════
+
+# ─── Model 1: VADER ───────────────────────────
+def vader_predict(text):
+    """
+    Rule-based lexicon model. Fast but limited — works on keyword
+    matching and punctuation/capitalization heuristics.
+    Returns (mood, confidence) where confidence is 0.0-1.0
+    """
+    text_lower = text.lower()
+    scores = vader_analyzer.polarity_scores(text)
+    compound = scores['compound']
+
+    anxiety_keywords = [
+        'anxious', 'anxiety', 'panic', 'panicking', 'worried', 'worrying',
+        'stress', 'stressed', 'nervous', 'overwhelmed', 'scared', 'afraid',
+        'fear', 'tense', 'restless', 'on edge', 'cant sleep', "can't sleep",
+        'insomnia', 'racing thoughts', 'shaking', 'trembling', 'uneasy'
+    ]
+    depression_keywords = [
+        'depressed', 'depression', 'hopeless', 'worthless', 'empty',
+        'meaningless', 'pointless', 'sad', 'miserable', 'crying', 'tears',
+        'devastated', 'heartbroken', 'lonely', 'isolated', 'dont care', "don't care"
+    ]
+    numbness_keywords = [
+        'numb', 'numbness', 'dissociat', 'detached', 'detachment', 'unreal',
+        'disconnected', 'zoned out', 'foggy', 'empty inside', 'feel nothing',
+        'cant feel', "can't feel", 'going through the motions', 'like a robot',
+        'out of body', 'derealization', 'depersonalization', 'spacing out'
+    ]
+    happy_keywords = [
+        'happy', 'joy', 'joyful', 'excited', 'great', 'amazing', 'awesome',
+        'wonderful', 'fantastic', 'love', 'blessed', 'grateful', 'thankful',
+        'delighted', 'thrilled', 'ecstatic', 'cheerful', 'glad'
+    ]
+    calm_keywords = [
+        'calm', 'peaceful', 'relaxed', 'content', 'serene', 'tranquil',
+        'at ease', 'comfortable', 'okay', 'alright', 'good', 'better',
+        'relieved', 'stable', 'balanced', 'centered', 'grounded'
+    ]
+
+    anxiety_count = sum(1 for k in anxiety_keywords if k in text_lower)
+    depression_count = sum(1 for k in depression_keywords if k in text_lower)
+    numbness_count = sum(1 for k in numbness_keywords if k in text_lower)
+    happy_count = sum(1 for k in happy_keywords if k in text_lower)
+    calm_count = sum(1 for k in calm_keywords if k in text_lower)
+
+    # Keyword matches take priority
+    counts = {
+        'anxiety': anxiety_count,
+        'depression': depression_count,
+        'numbness': numbness_count,
+        'happy': happy_count,
+        'calm': calm_count,
+    }
+    max_count = max(counts.values())
+    if max_count > 0:
+        mood = max(counts, key=counts.get)
+        confidence = min(0.4 + (max_count * 0.1), 0.9)
+        return mood, confidence
+
+    # Fall back to compound score
+    if compound <= -0.6:
+        return 'depression', 0.7
+    elif compound <= -0.2:
+        return 'anxiety', 0.6
+    elif -0.2 < compound < 0.2:
+        return 'numbness', 0.5
+    elif 0.2 <= compound < 0.6:
+        return 'calm', 0.6
+    else:
+        return 'happy', 0.7
+
+
+# ─── Model 2: HuggingFace Transformer ────────
+def huggingface_predict(text):
+    """
+    Neural network model (distilRoBERTa) fine-tuned on emotional text.
+    Maps HuggingFace's 7 emotions → our 5 moods.
+    Returns (mood, confidence) where confidence is the model's probability score.
+    """
+    if hf_classifier is None:
+        return None, 0.0
+
+    try:
+        results = hf_classifier(text[:512])  # model max input length
+        # results is a list of lists: [[{label, score}, ...]]
+        scores = {r['label']: r['score'] for r in results[0]}
+
+        # Map HuggingFace emotions → our app's 5 moods
+        # HF labels: anger, disgust, fear, joy, neutral, sadness, surprise
+        mood_mapping = {
+            'sadness':  'depression',
+            'disgust':  'depression',
+            'fear':     'anxiety',
+            'anger':    'anxiety',
+            'neutral':  'numbness',
+            'surprise': 'calm',
+            'joy':      'happy',
+        }
+
+        # Find the highest scoring HF emotion
+        top_hf_emotion = max(scores, key=scores.get)
+        top_score = scores[top_hf_emotion]
+        mapped_mood = mood_mapping[top_hf_emotion]
+
+        # If neutral with low confidence, lean toward numbness
+        if top_hf_emotion == 'neutral' and top_score < 0.4:
+            return 'numbness', top_score
+
+        return mapped_mood, top_score
+
+    except Exception as e:
+        print(f"⚠️  HuggingFace prediction error: {e}")
+        return None, 0.0
+
+
+# ─── Model 3: Gemini LLM ─────────────────────
+def gemini_predict(text):
+    """
+    Large Language Model with deep contextual understanding.
+    Best at nuanced states like dissociation, burnout, masked depression.
+    Returns (mood, confidence) — confidence is fixed high since LLM is most trusted.
+    """
+    if gemini_model is None:
+        return None, 0.0
+
+    try:
+        prompt = f"""You are a mental health mood classifier. Analyze the emotional state described and classify it into exactly ONE of these five moods:
+
+- depression: sadness, hopelessness, emptiness, grief, worthlessness, crying, feeling broken
+- anxiety: worry, stress, panic, fear, overthinking, nervousness, racing thoughts, restlessness  
+- numbness: dissociation, feeling detached, zoned out, emotionally flat, unreal, can't feel anything, going through the motions, out of body
+- calm: peaceful, relaxed, content, okay, stable, at ease, comfortable
+- happy: joyful, excited, grateful, positive, energetic, cheerful, enthusiastic
+
+Text to analyze: "{text}"
+
+Reply with ONLY one word from this list: depression, anxiety, numbness, calm, happy
+No explanation, no punctuation, just the single word."""
+
+        response = gemini_model.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt
+        )
+        mood = response.text.strip().lower().rstrip('.')
+        if mood in ['depression', 'anxiety', 'numbness', 'calm', 'happy']:
+            return mood, 0.9  # high confidence — Gemini is our most trusted model
+        return None, 0.0
+
+    except Exception as e:
+        print(f"⚠️  Gemini mood prediction error: {e}")
+        return None, 0.0
+
+
+# ─── Ensemble Voting ─────────────────────────
+def analyze_sentiment(text):
+    """
+    ENSEMBLE MOOD DETECTION — Three NLP models vote on the mood:
+
+    1. VADER (weight: 0.2)
+       Rule-based lexicon model. Fast, classical NLP approach.
+
+    2. HuggingFace distilRoBERTa (weight: 0.3)
+       Neural network transformer fine-tuned on emotional text.
+       Understands semantic meaning, not just keywords.
+
+    3. Gemini 2.5 Flash (weight: 0.5)
+       Large Language Model with deep contextual understanding.
+       Best at nuance — dissociation, burnout, masked emotions.
+
+    Final mood = highest weighted vote score.
+    Confidence % shown to user = winning score / total score.
+    """
+
+    # Safety check — always highest priority regardless of models
+    text_lower = text.lower()
+    critical_keywords = ['suicidal', 'suicide', 'kill myself', 'want to die',
+                         'end it all', 'no reason to live', 'better off dead',
+                         'cant go on', "can't go on"]
+    if any(keyword in text_lower for keyword in critical_keywords):
+        return 'depression', 100, {
+            'vader': 'depression', 'huggingface': 'depression', 'gemini': 'depression'
+        }
+
+    # Model weights — higher = more trusted
+    WEIGHTS = {
+        'vader': 0.2,
+        'huggingface': 0.3,
+        'gemini': 0.5,
+    }
+
+    # Get each model's prediction
+    vader_mood, vader_conf = vader_predict(text)
+    hf_mood, hf_conf = huggingface_predict(text)
+    gemini_mood, gemini_conf = gemini_predict(text)
+
+    # Log what each model said (visible in terminal, useful for debugging)
+    print(f"  🔵 VADER predicted:       {vader_mood} (conf: {vader_conf:.2f})")
+    print(f"  🟠 HuggingFace predicted: {hf_mood} (conf: {hf_conf:.2f})")
+    print(f"  🟢 Gemini predicted:      {gemini_mood} (conf: {gemini_conf:.2f})")
+
+    # Weighted vote: accumulate scores per mood
+    mood_scores = {'depression': 0.0, 'anxiety': 0.0, 'numbness': 0.0, 'calm': 0.0, 'happy': 0.0}
+
+    if vader_mood:
+        mood_scores[vader_mood] += WEIGHTS['vader'] * vader_conf
+    if hf_mood:
+        mood_scores[hf_mood] += WEIGHTS['huggingface'] * hf_conf
+    if gemini_mood:
+        mood_scores[gemini_mood] += WEIGHTS['gemini'] * gemini_conf
+
+    # Pick the mood with the highest weighted score
+    final_mood = max(mood_scores, key=mood_scores.get)
+    total_score = sum(mood_scores.values())
+    confidence_pct = round((mood_scores[final_mood] / total_score) * 100) if total_score > 0 else 0
+
+    print(f"  ✅ Ensemble result: {final_mood} ({confidence_pct}% confidence)")
+
+    model_votes = {
+        'vader': vader_mood or 'unavailable',
+        'huggingface': hf_mood or 'unavailable',
+        'gemini': gemini_mood or 'unavailable',
+    }
+
+    return final_mood, confidence_pct, model_votes
+
+
 # ─────────────────────────────────────────────
 # SPOTIFY: Live track search
-# Returns list of dicts: {title, artist, spotify_id, album_art}
 # ─────────────────────────────────────────────
 def get_spotify_tracks(mood, limit=3):
     if sp is None:
         return _format_fallback_songs(mood)
-
     try:
         query = random.choice(MOOD_SPOTIFY_QUERIES[mood])
         results = sp.search(q=query, type='track', limit=10)
         tracks = results['tracks']['items']
-
         if not tracks:
             return _format_fallback_songs(mood)
-
-        # Shuffle and pick `limit` tracks for variety on each visit
         random.shuffle(tracks)
         selected = tracks[:limit]
-
         return [
             {
                 'title': t['name'],
                 'artist': t['artists'][0]['name'],
                 'spotify_id': t['id'],
                 'album_art': t['album']['images'][1]['url'] if len(t['album']['images']) > 1 else t['album']['images'][0]['url'],
-                'preview_url': t.get('preview_url'),  # 30-sec preview, may be None
+                'preview_url': t.get('preview_url'),
             }
             for t in selected
         ]
@@ -197,10 +449,8 @@ def _format_fallback_songs(mood):
 def get_personalized_activity(user_text, mood):
     if gemini_model is None:
         return random.choice(FALLBACK_ACTIVITIES[mood])
-
     try:
-        prompt = f"""
-A person is feeling {mood} and wrote the following:
+        prompt = f"""A person is feeling {mood} and wrote the following:
 "{user_text}"
 
 Write ONE short, warm, and specific coping activity suggestion for them.
@@ -209,91 +459,14 @@ Write ONE short, warm, and specific coping activity suggestion for them.
 - Be compassionate and direct
 - Do not start with "I" or mention that you're an AI
 """
-        response = gemini_model.generate_content(prompt)
+        response = gemini_model.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt
+        )
         return response.text.strip()
     except Exception as e:
-        print(f"⚠️  Gemini error: {e}")
+        print(f"⚠️  Gemini activity error: {e}")
         return random.choice(FALLBACK_ACTIVITIES[mood])
-
-
-# ─────────────────────────────────────────────
-# SENTIMENT ANALYSIS (VADER + keywords, unchanged from original)
-# ─────────────────────────────────────────────
-def analyze_sentiment(text):
-    text_lower = text.lower()
-
-    critical_keywords = {
-        'depression': ['suicidal', 'suicide', 'kill myself', 'want to die', 'end it all',
-                       'no reason to live', 'better off dead', 'cant go on', "can't go on"]
-    }
-    for mood, keywords in critical_keywords.items():
-        if any(keyword in text_lower for keyword in keywords):
-            return mood
-
-    scores = analyzer.polarity_scores(text)
-    compound = scores['compound']
-
-    anxiety_keywords = [
-        'anxious', 'anxiety', 'panic', 'panicking', 'worried', 'worrying', 'worry',
-        'stress', 'stressed', 'stressing', 'stressful', 'nervous', 'nervousness',
-        'overwhelmed', 'overwhelming', 'scared', 'afraid', 'fear', 'fearful',
-        'tense', 'tension', 'restless', 'on edge', 'uneasy', 'apprehensive',
-        'cant sleep', "can't sleep", 'insomnia', 'racing thoughts', 'heart racing',
-        'cant breathe', "can't breathe", 'hyperventilating', 'shaking', 'trembling'
-    ]
-    depression_keywords = [
-        'depressed', 'depression', 'hopeless', 'hopelessness', 'worthless',
-        'empty', 'emptiness', 'meaningless', 'pointless', 'numb', 'numbness',
-        'sad', 'sadness', 'miserable', 'down', 'low', 'blue', 'unhappy',
-        'crying', 'tears', 'devastated', 'heartbroken', 'lonely', 'alone',
-        'isolated', 'cant feel', "can't feel", 'dont care', "don't care"
-    ]
-    anger_keywords = [
-        'angry', 'anger', 'mad', 'furious', 'rage', 'enraged', 'livid',
-        'irritated', 'irritation', 'frustrated', 'frustration', 'annoyed',
-        'annoying', 'pissed', 'pissed off', 'hate', 'hating', 'fed up',
-        'sick of', 'cant stand', "can't stand", 'infuriated', 'outraged'
-    ]
-    happy_keywords = [
-        'happy', 'happiness', 'joy', 'joyful', 'excited', 'excitement',
-        'great', 'amazing', 'awesome', 'wonderful', 'fantastic', 'excellent',
-        'love', 'loving', 'blessed', 'grateful', 'thankful', 'appreciate',
-        'delighted', 'thrilled', 'ecstatic', 'elated', 'cheerful', 'glad'
-    ]
-    calm_keywords = [
-        'calm', 'calming', 'peaceful', 'peace', 'relaxed', 'relaxing',
-        'content', 'contentment', 'serene', 'serenity', 'tranquil', 'tranquility',
-        'at ease', 'comfortable', 'fine', 'okay', 'alright', 'good', 'better',
-        'relieved', 'relief', 'stable', 'balanced', 'centered', 'grounded'
-    ]
-
-    anxiety_count = sum(1 for k in anxiety_keywords if k in text_lower)
-    depression_count = sum(1 for k in depression_keywords if k in text_lower)
-    anger_count = sum(1 for k in anger_keywords if k in text_lower)
-    happy_count = sum(1 for k in happy_keywords if k in text_lower)
-    calm_count = sum(1 for k in calm_keywords if k in text_lower)
-
-    if anxiety_count > 0:
-        return 'anxiety'
-    if anger_count > 0:
-        return 'anxiety'
-    if depression_count > 0 and compound <= 0.1:
-        return 'depression'
-    if happy_count > 0 and compound >= 0.0:
-        return 'happy'
-    if calm_count > 0 and compound >= -0.1:
-        return 'calm'
-
-    if compound <= -0.6:
-        return 'depression'
-    elif compound <= -0.2:
-        return 'anxiety'
-    elif -0.2 < compound < 0.2:
-        return 'numbness'
-    elif 0.2 <= compound < 0.6:
-        return 'calm'
-    else:
-        return 'happy'
 
 
 # ─────────────────────────────────────────────
@@ -319,22 +492,25 @@ def analyze():
         return render_template('index.html',
                                error="Please write at least 10 characters to help us understand your feelings better.")
 
-    # Detect mood
-    mood = analyze_sentiment(user_input)
+    print(f"\n📝 Analyzing: \"{user_input[:60]}...\"")
 
-    # Get live Spotify tracks for this mood
+    # Ensemble mood detection
+    mood, confidence, model_votes = analyze_sentiment(user_input)
+
+    # Live Spotify tracks
     songs = get_spotify_tracks(mood, limit=3)
 
-    # Get Gemini-personalized activity
+    # Gemini personalized activity
     activity = get_personalized_activity(user_input, mood)
 
-    # Quote (static, per mood)
     quote = MOOD_QUOTES[mood]
 
     return render_template('result.html',
                            mood=mood.capitalize(),
-                           songs=songs,                  # NEW: list of songs
-                           song=songs[0] if songs else None,  # kept for backward compat
+                           confidence=confidence,
+                           model_votes=model_votes,
+                           songs=songs,
+                           song=songs[0] if songs else None,
                            activity=activity,
                            quote=quote,
                            user_text=user_input)
@@ -356,9 +532,13 @@ def internal_error(e):
     return render_template('home.html'), 500
 
 if __name__ == '__main__':
-    print("🌸 BreatheEase is starting...")
-    print("🎵 Spotify live search:", "✅ enabled" if sp else "⚠️  disabled (check env vars)")
-    print("🤖 Gemini activities:", "✅ enabled" if gemini_model else "⚠️  disabled (check env vars)")
+    print("\n🌸 BreatheEase is starting...")
+    print("─────────────────────────────────────")
+    print("🔵 VADER:        ✅ ready (rule-based NLP)")
+    print("🟠 HuggingFace: ", "✅ ready (neural network)" if hf_classifier else "⚠️  unavailable")
+    print("🟢 Gemini:      ", "✅ ready (LLM)" if gemini_model else "⚠️  unavailable")
+    print("🎵 Spotify:     ", "✅ ready (live search)" if sp else "⚠️  unavailable (fallback songs)")
+    print("─────────────────────────────────────")
     print("✅ Server running at: http://127.0.0.1:5000")
-    print("🛑 Press Ctrl+C to stop the server")
+    print("🛑 Press Ctrl+C to stop\n")
     app.run(debug=False, host='0.0.0.0', port=5000)

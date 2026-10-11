@@ -5,6 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BreatheEase - Your Results</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* ── Ensemble Analysis Panel ── */
+        .ensemble-panel {
+            background: linear-gradient(135deg, #f8f4ff, #f0f7ff);
+            border: 1px solid #d8c8ff;
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin: 20px 0;
+        }
+        .ensemble-panel h3 {
+            margin: 0 0 14px 0;
+            font-size: 0.95rem;
+            color: #6b5c8a;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .confidence-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .confidence-label {
+            font-size: 0.85rem;
+            color: #555;
+            white-space: nowrap;
+        }
+        .confidence-bar {
+            flex: 1;
+            background: #e0d6f5;
+            border-radius: 99px;
+            height: 10px;
+            overflow: hidden;
+        }
+        .confidence-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, #a78bfa, #6366f1);
+            transition: width 1s ease;
+        }
+        .confidence-pct {
+            font-weight: 700;
+            color: #6366f1;
+            font-size: 0.95rem;
+            min-width: 38px;
+        }
+        .model-votes {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .model-vote-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            border: 1px solid #e2d9f3;
+            border-radius: 99px;
+            padding: 5px 12px;
+            font-size: 0.82rem;
+            color: #444;
+        }
+        .model-vote-chip .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .dot-vader       { background: #60a5fa; }
+        .dot-huggingface { background: #fb923c; }
+        .dot-gemini      { background: #34d399; }
+        .vote-mood {
+            font-weight: 600;
+            color: #6366f1;
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation Bar -->
@@ -23,6 +98,7 @@
     <!-- Results Section -->
     <section class="results-section">
         <div class="results-container">
+
             <!-- Mood Detection Display -->
             <div class="mood-header">
                 <h1>Your Mood: <span class="mood-badge mood-{{ mood.lower() }}">{{ mood }}</span></h1>
@@ -33,6 +109,32 @@
             <div class="user-input-display">
                 <h3>What you shared:</h3>
                 <p class="user-text">"{{ user_text }}"</p>
+            </div>
+
+            <!-- ── Ensemble Analysis Panel ── -->
+            <div class="ensemble-panel">
+                <h3>🧠 Ensemble AI Analysis</h3>
+                <div class="confidence-bar-wrap">
+                    <span class="confidence-label">Confidence</span>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: {{ confidence }}%"></div>
+                    </div>
+                    <span class="confidence-pct">{{ confidence }}%</span>
+                </div>
+                <div class="model-votes">
+                    <div class="model-vote-chip">
+                        <span class="dot dot-vader"></span>
+                        VADER → <span class="vote-mood">{{ model_votes.vader }}</span>
+                    </div>
+                    <div class="model-vote-chip">
+                        <span class="dot dot-huggingface"></span>
+                        HuggingFace → <span class="vote-mood">{{ model_votes.huggingface }}</span>
+                    </div>
+                    <div class="model-vote-chip">
+                        <span class="dot dot-gemini"></span>
+                        Gemini → <span class="vote-mood">{{ model_votes.gemini }}</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Recommendations Grid -->
@@ -93,7 +195,7 @@
                 <a href="/" class="secondary-button">Return Home</a>
             </div>
 
-            <!-- Crisis Resources (shown for depression/anxiety moods) -->
+            <!-- Crisis Resources -->
             {% if mood.lower() in ['depression', 'anxiety'] %}
             <div class="crisis-box">
                 <h3>⚠️ Need Immediate Support?</h3>
@@ -105,6 +207,7 @@
                 </ul>
             </div>
             {% endif %}
+
         </div>
     </section>
 
@@ -114,7 +217,6 @@
         <p class="footer-note">Remember: This tool is for support, not a substitute for professional help.</p>
     </footer>
 
-    <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
         function markComplete() {
